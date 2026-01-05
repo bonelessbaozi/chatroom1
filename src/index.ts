@@ -18,10 +18,19 @@ export class ChatRoom extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
-    // Broadcast message to everyone else
+  async webSocketMessage(ws: WebSocket, message: string) {
+    // Get the city from the metadata Cloudflare attaches to the socket
+    const city = ws.deserializeAttachment()?.city || "Unknown City";
+    
+    const payload = JSON.stringify({
+      text: message,
+      from: city,
+      time: new Date().toLocaleTimeString()
+    });
+  
     this.ctx.getWebSockets().forEach((client) => {
-      if (client !== ws) client.send(message);
+      if (client !== ws) client.send(payload);
     });
   }
+  
 }
