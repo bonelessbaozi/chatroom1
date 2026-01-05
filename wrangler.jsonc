@@ -1,5 +1,5 @@
 {
-  "name": "chat1",
+  "name": "chatroom1",
   "main": "src/index.ts",
   "compatibility_date": "2026-01-01",
   "durable_objects": {
