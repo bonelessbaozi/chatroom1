@@ -13,24 +13,38 @@ export default {
 export class ChatRoom extends DurableObject {
   async fetch(request: Request) {
     const [client, server] = Object.values(new WebSocketPair());
-    // CRITICAL: acceptWebSocket enables Hibernation (Free Tier friendly!)
+
+    // 1. Get the city from the request headers
+    const city = request.cf?.city || "Unknown City";
+
+    // 2. SAVE the city to the socket so it survives hibernation
+    server.serializeAttachment({ city });
+
     this.ctx.acceptWebSocket(server);
     return new Response(null, { status: 101, webSocket: client });
   }
 
   async webSocketMessage(ws: WebSocket, message: string) {
-    // Get the city from the metadata Cloudflare attaches to the socket
-    const city = ws.deserializeAttachment()?.city || "Unknown City";
-    
+    // 3. RETRIEVE the city we saved earlier
+    const attachment = ws.deserializeAttachment();
+    const city = attachment?.city || "Unknown City";
+
     const payload = JSON.stringify({
       text: message,
       from: city,
       time: new Date().toLocaleTimeString()
     });
-  
+
     this.ctx.getWebSockets().forEach((client) => {
       if (client !== ws) client.send(payload);
     });
   }
-  
+
+  async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
+    this.ctx.getWebSockets().forEach(client => {
+      if (client !== ws) {
+        client.send(JSON.stringify({ system: "User left the chat" }));
+      }
+    });
+  }
 }
