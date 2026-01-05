@@ -24,21 +24,29 @@ export class ChatRoom extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async webSocketMessage(ws: WebSocket, message: string) {
-    // 3. RETRIEVE the city we saved earlier
-    const attachment = ws.deserializeAttachment();
-    const city = attachment?.city || "Unknown City";
+async webSocketMessage(ws: WebSocket, message: string) {
+  const attachment = ws.deserializeAttachment();
+  const city = attachment?.city || "Unknown City";
 
-    const payload = JSON.stringify({
-      text: message,
-      from: city,
-      time: new Date().toLocaleTimeString()
-    });
-
-    this.ctx.getWebSockets().forEach((client) => {
-      if (client !== ws) client.send(payload);
-    });
+  // Check if message is a simple string or a JSON object
+  let textContent = message;
+  try {
+    const parsed = JSON.parse(message);
+    textContent = parsed.text || message;
+  } catch (e) {
+    // It's just a plain string from Python, which is fine!
   }
+
+  const payload = JSON.stringify({
+    text: textContent,
+    from: city,
+    time: new Date().toLocaleTimeString()
+  });
+
+  this.ctx.getWebSockets().forEach((client) => {
+    if (client !== ws) client.send(payload);
+  });
+}
 
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
     this.ctx.getWebSockets().forEach(client => {
